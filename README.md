@@ -1,3 +1,12 @@
+---
+title: Meta Openenv Hackathon Demo
+emoji: 🔥
+colorFrom: yellow
+colorTo: pink
+sdk: docker
+pinned: false
+---
+
 # AI Misuse Triage Environment
 
 > **Meta PyTorch OpenEnv Hackathon Submission**
