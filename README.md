@@ -64,7 +64,7 @@ pip install -r requirements.txt
 ## 🕹 Running the Demo
 
 ### Web Interface (Recommended)
-Run the FastAPI app:
+Run the Flask app:
 ```bash
 python app.py
 ```
@@ -129,9 +129,9 @@ Scoring is fully **deterministic** based on a weighted rubric:
 3. **Run Eval**: `docker run ai-misuse-triage python inference.py --minimal`
 
 ### Hugging Face Spaces
-This project is configured for **Hugging Face Spaces** with a minimal FastAPI app:
+This project is configured for **Hugging Face Spaces** with a Flask-based app:
 - The `Dockerfile` exposes port `7860`.
-- The container starts `uvicorn` to serve the app.
+- The container starts `gunicorn` to serve the app.
 - Push this repository to your Space to deploy.
 
 ---
