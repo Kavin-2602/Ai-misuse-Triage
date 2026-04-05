@@ -55,11 +55,11 @@ pip install -r requirements.txt
 ## 🕹 Running the Demo
 
 ### Web Interface (Recommended)
-Run the Flask-based interactive dashboard:
+Run the FastAPI app:
 ```bash
 python app.py
 ```
-Visit `http://127.0.0.1:5000` to use the premium UI.
+Visit `http://127.0.0.1:7860` to view the app.
 
 ### CLI Baseline
 Run the rule-based sample agent through the environment loop:
@@ -120,10 +120,10 @@ Scoring is fully **deterministic** based on a weighted rubric:
 3. **Run Eval**: `docker run ai-misuse-triage python inference.py --minimal`
 
 ### Hugging Face Spaces
-This project is configured for **Hugging Face Spaces** using the **Docker SDK**:
+This project is configured for **Hugging Face Spaces** with a minimal FastAPI app:
 - The `Dockerfile` exposes port `7860`.
-- The entrypoint uses `gunicorn` for production-grade performance.
-- Simply push this repository to your Space to deploy.
+- The container starts `uvicorn` to serve the app.
+- Push this repository to your Space to deploy.
 
 ---
 
