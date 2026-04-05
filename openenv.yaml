@@ -1,0 +1,27 @@
+# OpenEnv Evaluation Configuration
+# Defines the environment structure and automated evaluation entrypoints.
+
+name: "ai-misuse-triage"
+version: "1.0.0"
+description: "A reinforcement learning environment for triage and classification of AI misuse."
+
+# Entrypoint for automated evaluation
+# The evaluator will run: python <entrypoint> --minimal
+evaluation:
+  entrypoint: "inference.py"
+  mode: "episodes"
+  seed: 0
+  shuffle: false
+
+# Expected output schema for the 'decide' step
+schema:
+  - risk_label  # benign | suspicious | harmful
+  - category    # phishing | scam | prompt_injection | medical | harassment | other | writing_assistance
+  - action      # allow | warn | escalate | block
+  - rationale   # string
+
+# Hardware / Runtime requirements
+runtime:
+  python_version: "3.10"
+  gpu: false
+  memory: "2Gi"
