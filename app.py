@@ -26,12 +26,14 @@ def index():
     return render_template("index.html")
 
 @app.route("/api/reset", methods=["POST"])
+@app.route("/reset", methods=["POST"])
 def reset():
     """Standard OpenEnv reset endpoint."""
     obs, info = env.reset()
     return jsonify({"observation": obs, "info": info})
 
 @app.route("/api/step", methods=["POST"])
+@app.route("/step", methods=["POST"])
 def step():
     """Standard OpenEnv step endpoint."""
     data = request.json or {}
@@ -46,11 +48,13 @@ def step():
     })
 
 @app.route("/api/state", methods=["GET"])
+@app.route("/state", methods=["GET"])
 def state():
     """Standard OpenEnv state endpoint."""
     return jsonify(env.state())
 
 @app.route("/api/infer", methods=["POST"])
+@app.route("/infer", methods=["POST"])
 def infer():
     """Endpoint to run the triage logic on user inputs."""
     data = request.json or {}
