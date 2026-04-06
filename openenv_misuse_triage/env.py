@@ -166,6 +166,16 @@ class MisuseTriageEnv(BaseEnv):
 
         return obs, reward, terminated, False, info
 
+    def state(self) -> dict[str, Any]:
+        """Return a snapshot of the current environment state."""
+        return {
+            "episode_index": self._episode_index,
+            "total_episodes": len(self._episode_queue),
+            "current_episode_id": self.current_episode_id,
+            "done": self._done,
+            "last_score": self._last_result.score if self._last_result else None,
+        }
+
     def render(self) -> str:
         """Return the current observation as a string."""
         if self._current_episode is None:

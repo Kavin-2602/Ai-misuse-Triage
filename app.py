@@ -6,11 +6,14 @@ from flask import Flask, render_template, request, jsonify
 import uuid
 from inference import RuleBasedAgent
 from learning import LearningAgent
+from openenv_misuse_triage import MisuseTriageEnv
 from openenv_misuse_triage.tasks import make_observation
 
 app = Flask(__name__)
+# Initialize standard environment instance for compliance endpoints
+env = MisuseTriageEnv(shuffle=False, seed=42)
+
 # Initialize both the existing rule-based agent for evaluation and the learning agent for training
-# The training agent updates its policy based on reward feedback during runtime.
 eval_agent = RuleBasedAgent()
 train_agent = LearningAgent()
 
@@ -21,6 +24,31 @@ pending_episodes = {}
 def index():
     """Serves the main frontend Web UI."""
     return render_template("index.html")
+
+@app.route("/api/reset", methods=["POST"])
+def reset():
+    """Standard OpenEnv reset endpoint."""
+    obs, info = env.reset()
+    return jsonify({"observation": obs, "info": info})
+
+@app.route("/api/step", methods=["POST"])
+def step():
+    """Standard OpenEnv step endpoint."""
+    data = request.json or {}
+    action = data.get("action")
+    obs, reward, term, trunc, info = env.step(action)
+    return jsonify({
+        "observation": obs,
+        "reward": reward,
+        "terminated": term,
+        "truncated": trunc,
+        "info": info
+    })
+
+@app.route("/api/state", methods=["GET"])
+def state():
+    """Standard OpenEnv state endpoint."""
+    return jsonify(env.state())
 
 @app.route("/api/infer", methods=["POST"])
 def infer():

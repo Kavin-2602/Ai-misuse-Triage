@@ -179,6 +179,7 @@ def run_single_episode(env: MisuseTriageEnv, agent: RuleBasedAgent, minimal: boo
 
     decision = agent.decide(obs)
     if minimal:
+        print("[STEP]")
         print(json.dumps(decision))
         return
 
@@ -216,6 +217,9 @@ def run_full_benchmark(env: MisuseTriageEnv, agent: RuleBasedAgent, minimal: boo
 
     while True:
         episode_num += 1
+        if minimal:
+            print("[STEP]")
+
         decision = agent.decide(obs)
 
         # Automated Grader expects JSON on stdout
@@ -273,6 +277,7 @@ def run_specific_episode(env: MisuseTriageEnv, agent: RuleBasedAgent, episode_id
 
     decision = agent.decide(obs)
     if minimal:
+        print("[STEP]")
         print(json.dumps(decision))
         return
 
@@ -340,6 +345,12 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    # Mandatory environment variable check for hackathon compliance
+    for var in ["API_BASE_URL", "MODEL_NAME", "HF_TOKEN"]:
+        if not os.environ.get(var):
+            print(f"[ERROR] Required environment variable '{var}' is missing.")
+            sys.exit(1)
+
     env = MisuseTriageEnv(shuffle=False, seed=0)
     agent = RuleBasedAgent()
 
@@ -351,12 +362,18 @@ def main() -> None:
         print(f"\n  Dataset loaded: {env.num_episodes} episodes")
         print(f"  Agent: RuleBasedAgent (keyword heuristics, no ML model)")
 
+    if args.minimal:
+        print("[START]")
+
     if args.episode:
         run_specific_episode(env, agent, args.episode, minimal=args.minimal)
     elif args.single:
         run_single_episode(env, agent, minimal=args.minimal)
     else:
         run_full_benchmark(env, agent, minimal=args.minimal)
+
+    if args.minimal:
+        print("[END]")
 
 
 if __name__ == "__main__":
