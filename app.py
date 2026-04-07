@@ -4,18 +4,32 @@ app.py - Minimal Flask Web UI for the AI Misuse Triage Environment.
 
 from flask import Flask, render_template, request, jsonify
 import uuid
-from inference import RuleBasedAgent
-from learning import LearningAgent
 from openenv_misuse_triage import MisuseTriageEnv
 from openenv_misuse_triage.tasks import make_observation
+
+# Import agents with fallback handling
+try:
+    from learning import LearningAgent
+    train_agent = LearningAgent()
+except (ImportError, RuntimeError) as e:
+    print(f"[WARNING] LearningAgent failed to initialize: {e}")
+    train_agent = None
+
+# Simple fallback agent for web UI (not used in submission)
+class SimpleAgent:
+    def decide(self, observation: str):
+        return {
+            "risk_label": "benign",
+            "category": "other",
+            "action": "allow",
+            "rationale": "Web UI fallback agent"
+        }
+
+eval_agent = SimpleAgent()
 
 app = Flask(__name__)
 # Initialize standard environment instance for compliance endpoints
 env = MisuseTriageEnv(shuffle=False, seed=42)
-
-# Initialize both the existing rule-based agent for evaluation and the learning agent for training
-eval_agent = RuleBasedAgent()
-train_agent = LearningAgent()
 
 # In-memory store for pending training episodes waiting for a reward
 pending_episodes = {}

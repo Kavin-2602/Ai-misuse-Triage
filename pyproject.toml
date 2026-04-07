@@ -9,6 +9,7 @@ description = "A reinforcement learning environment for triage and classificatio
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "openai>=1.0.0",
     "openenv-core>=0.2.0",
     "flask==3.0.0",
     "gunicorn==21.2.0",
