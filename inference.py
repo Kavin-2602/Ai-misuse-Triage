@@ -179,8 +179,8 @@ def run_single_episode(env: MisuseTriageEnv, agent: RuleBasedAgent, minimal: boo
 
     decision = agent.decide(obs)
     if minimal:
-        print("[STEP]")
-        print(json.dumps(decision))
+        print("[STEP]", flush=True)
+        print(json.dumps(decision), flush=True)
         return
 
     print(f"\n{'─'*60}")
@@ -218,13 +218,13 @@ def run_full_benchmark(env: MisuseTriageEnv, agent: RuleBasedAgent, minimal: boo
     while True:
         episode_num += 1
         if minimal:
-            print("[STEP]")
+            print("[STEP]", flush=True)
 
         decision = agent.decide(obs)
 
         # Automated Grader expects JSON on stdout
         if minimal:
-            print(json.dumps(decision))
+            print(json.dumps(decision), flush=True)
 
         obs_next, reward, terminated, _, step_info = env.step(decision)
 
@@ -277,8 +277,8 @@ def run_specific_episode(env: MisuseTriageEnv, agent: RuleBasedAgent, episode_id
 
     decision = agent.decide(obs)
     if minimal:
-        print("[STEP]")
-        print(json.dumps(decision))
+        print("[STEP]", flush=True)
+        print(json.dumps(decision), flush=True)
         return
 
     print(f"\n{'─'*60}")
@@ -364,7 +364,7 @@ def main() -> None:
             print(f"  Agent: RuleBasedAgent (keyword heuristics, no ML model)")
 
         if args.minimal:
-            print("[START]")
+            print("[START]", flush=True)
 
         if args.episode:
             run_specific_episode(env, agent, args.episode, minimal=args.minimal)
@@ -379,7 +379,7 @@ def main() -> None:
         traceback.print_exc(file=sys.stderr)
     finally:
         if args.minimal:
-            print("[END]")
+            print("[END]", flush=True)
 
 
 if __name__ == "__main__":
