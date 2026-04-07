@@ -171,7 +171,7 @@ class RuleBasedAgent:
 # Demo runner
 # ===========================================================================
 
-def run_single_episode(env: MisuseTriageEnv, agent: RuleBasedAgent, minimal: bool = False) -> None:
+def run_single_episode(env: MisuseTriageEnv, agent: RuleBasedAgent, minimal: bool = False) -> tuple[int, list[float]]:
     """Run and display a single episode (first one after reset)."""
     obs, info = env.reset(seed=42)
     if not minimal:
@@ -179,9 +179,22 @@ def run_single_episode(env: MisuseTriageEnv, agent: RuleBasedAgent, minimal: boo
 
     decision = agent.decide(obs)
     if minimal:
-        print("[STEP]", flush=True)
-        print(json.dumps(decision), flush=True)
-        return
+        try:
+            obs, reward, terminated, _, step_info = env.step(decision)
+            error = None
+        except Exception as exc:
+            obs = ""
+            reward = 0.0
+            terminated = False
+            error = str(exc)
+        _print_minimal_step(
+            step_num=1,
+            action=str(decision.get("action", "")),
+            reward=reward,
+            done=terminated,
+            error=error,
+        )
+        return 1, [reward]
 
     print(f"\n{'─'*60}")
     print("  AGENT OUTPUT")
@@ -202,9 +215,10 @@ def run_single_episode(env: MisuseTriageEnv, agent: RuleBasedAgent, minimal: boo
     print(f"    category   : {gt['category']}")
     print(f"    action     : {gt['action']}")
     print(f"    rationale  : {gt['rationale'][:80]}...")
+    return 1, [reward]
 
 
-def run_full_benchmark(env: MisuseTriageEnv, agent: RuleBasedAgent, minimal: bool = False) -> None:
+def run_full_benchmark(env: MisuseTriageEnv, agent: RuleBasedAgent, minimal: bool = False) -> tuple[int, list[float]]:
     """Run the agent through all episodes and print aggregate stats."""
     if not minimal:
         print(f"\n{'═'*60}")
@@ -214,19 +228,30 @@ def run_full_benchmark(env: MisuseTriageEnv, agent: RuleBasedAgent, minimal: boo
     obs, info = env.reset(seed=0)
     episode_records: list[dict] = []
     episode_num = 0
+    rewards: list[float] = []
 
     while True:
         episode_num += 1
-        if minimal:
-            print("[STEP]", flush=True)
-
         decision = agent.decide(obs)
 
-        # Automated Grader expects JSON on stdout
-        if minimal:
-            print(json.dumps(decision), flush=True)
+        try:
+            obs_next, reward, terminated, _, step_info = env.step(decision)
+            error = None
+        except Exception as exc:
+            obs_next = ""
+            reward = 0.0
+            terminated = False
+            step_info = {}
+            error = str(exc)
 
-        obs_next, reward, terminated, _, step_info = env.step(decision)
+        if minimal:
+            _print_minimal_step(
+                step_num=episode_num,
+                action=str(decision.get("action", "")),
+                reward=reward,
+                done=terminated,
+                error=error,
+            )
 
         if not minimal:
             gr = step_info["grade_result"]
@@ -240,10 +265,11 @@ def run_full_benchmark(env: MisuseTriageEnv, agent: RuleBasedAgent, minimal: boo
             )
 
         episode_records.append({
-            "episode_id": step_info["episode_id"],
+            "episode_id": step_info.get("episode_id", ""),
             "agent_output": decision,
             "ground_truth": env._episode_queue[episode_num - 1]["ground_truth"],
         })
+        rewards.append(reward)
 
         if terminated:
             break
@@ -254,8 +280,10 @@ def run_full_benchmark(env: MisuseTriageEnv, agent: RuleBasedAgent, minimal: boo
         stats = grade_batch(episode_records)
         _print_aggregate_stats(stats)
 
+    return episode_num, rewards
 
-def run_specific_episode(env: MisuseTriageEnv, agent: RuleBasedAgent, episode_id: str, minimal: bool = False) -> None:
+
+def run_specific_episode(env: MisuseTriageEnv, agent: RuleBasedAgent, episode_id: str, minimal: bool = False) -> tuple[int, list[float]]:
     """Run the agent on a specific episode by ID."""
     obs, info = env.reset(seed=0)
 
@@ -277,9 +305,20 @@ def run_specific_episode(env: MisuseTriageEnv, agent: RuleBasedAgent, episode_id
 
     decision = agent.decide(obs)
     if minimal:
-        print("[STEP]", flush=True)
-        print(json.dumps(decision), flush=True)
-        return
+        try:
+            _, reward, _, _, step_info = env.step(decision)
+            error = None
+        except Exception as exc:
+            reward = 0.0
+            error = str(exc)
+        _print_minimal_step(
+            step_num=1,
+            action=str(decision.get("action", "")),
+            reward=reward,
+            done=True,
+            error=error,
+        )
+        return 1, [reward]
 
     print(f"\n{'─'*60}")
     print("  AGENT OUTPUT")
@@ -292,6 +331,7 @@ def run_specific_episode(env: MisuseTriageEnv, agent: RuleBasedAgent, episode_id
     print('─'*60)
     print(step_info["feedback"])
     print(f"\n  Reward: {reward:.4f}")
+    return 1, [reward]
 
 
 # ===========================================================================
@@ -317,6 +357,30 @@ def _print_aggregate_stats(stats: dict) -> None:
     print(f"  Action accuracy     : {stats['action_accuracy']:.1%}")
     print(f"  Schema pass rate    : {stats['schema_pass_rate']:.1%}")
     print(f"{'═'*60}\n")
+
+
+def _format_bool(value: bool) -> str:
+    return "true" if value else "false"
+
+
+def _print_minimal_start(env: MisuseTriageEnv) -> None:
+    task_name = "misuse_triage"
+    env_name = getattr(env, "metadata", {}).get("name", "MisuseTriageEnv")
+    model_name = os.environ.get("MODEL_NAME", "RuleBasedAgent")
+    print(f"[START] task={task_name} env={env_name} model={model_name}", flush=True)
+
+
+def _print_minimal_step(step_num: int, action: str, reward: float, done: bool, error: str | None) -> None:
+    error_text = "null" if error is None else str(error).replace("\n", " ").replace("\r", " ")
+    print(
+        f"[STEP] step={step_num} action={action} reward={reward:.2f} done={_format_bool(done)} error={error_text}",
+        flush=True,
+    )
+
+
+def _print_minimal_end(success: bool, steps: int, rewards: list[float]) -> None:
+    reward_str = ",".join(f"{r:.2f}" for r in rewards)
+    print(f"[END] success={_format_bool(success)} steps={steps} rewards={reward_str}", flush=True)
 
 
 # ===========================================================================
@@ -345,6 +409,16 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    # When stdout is being captured by a validator or CI, enable minimal
+    # structured output automatically so [START]/[STEP]/[END] are emitted.
+    if not args.minimal and not sys.stdout.isatty():
+        args.minimal = True
+
+    env: MisuseTriageEnv | None = None
+    total_steps = 0
+    total_rewards: list[float] = []
+    success = False
+
     try:
         # Mandatory environment variable check for hackathon compliance
         # Set defaults if not provided to prevent crashes
@@ -364,22 +438,29 @@ def main() -> None:
             print(f"  Agent: RuleBasedAgent (keyword heuristics, no ML model)")
 
         if args.minimal:
-            print("[START]", flush=True)
+            _print_minimal_start(env)
 
         if args.episode:
-            run_specific_episode(env, agent, args.episode, minimal=args.minimal)
+            total_steps, total_rewards = run_specific_episode(env, agent, args.episode, minimal=args.minimal)
         elif args.single:
-            run_single_episode(env, agent, minimal=args.minimal)
+            total_steps, total_rewards = run_single_episode(env, agent, minimal=args.minimal)
         else:
-            run_full_benchmark(env, agent, minimal=args.minimal)
+            total_steps, total_rewards = run_full_benchmark(env, agent, minimal=args.minimal)
+
+        success = True
 
     except Exception as e:
         print(f"[ERROR] Unhandled exception: {e}", file=sys.stderr)
         import traceback
         traceback.print_exc(file=sys.stderr)
     finally:
+        if env is not None and hasattr(env, "close"):
+            try:
+                env.close()
+            except Exception:
+                pass
         if args.minimal:
-            print("[END]", flush=True)
+            _print_minimal_end(success, total_steps, total_rewards)
 
 
 if __name__ == "__main__":
