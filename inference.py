@@ -345,35 +345,41 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    # Mandatory environment variable check for hackathon compliance
-    for var in ["API_BASE_URL", "MODEL_NAME", "HF_TOKEN"]:
-        if not os.environ.get(var):
-            print(f"[ERROR] Required environment variable '{var}' is missing.")
-            sys.exit(1)
+    try:
+        # Mandatory environment variable check for hackathon compliance
+        for var in ["API_BASE_URL", "MODEL_NAME", "HF_TOKEN"]:
+            if not os.environ.get(var):
+                print(f"[ERROR] Required environment variable '{var}' is missing.")
+                sys.exit(1)
 
-    env = MisuseTriageEnv(shuffle=False, seed=0)
-    agent = RuleBasedAgent()
+        env = MisuseTriageEnv(shuffle=False, seed=0)
+        agent = RuleBasedAgent()
 
-    if not args.minimal:
-        # Banner (standard interactive mode)
-        print(get_task_overview())
-        print()
-        print(get_label_reference())
-        print(f"\n  Dataset loaded: {env.num_episodes} episodes")
-        print(f"  Agent: RuleBasedAgent (keyword heuristics, no ML model)")
+        if not args.minimal:
+            # Banner (standard interactive mode)
+            print(get_task_overview())
+            print()
+            print(get_label_reference())
+            print(f"\n  Dataset loaded: {env.num_episodes} episodes")
+            print(f"  Agent: RuleBasedAgent (keyword heuristics, no ML model)")
 
-    if args.minimal:
-        print("[START]")
+        if args.minimal:
+            print("[START]")
 
-    if args.episode:
-        run_specific_episode(env, agent, args.episode, minimal=args.minimal)
-    elif args.single:
-        run_single_episode(env, agent, minimal=args.minimal)
-    else:
-        run_full_benchmark(env, agent, minimal=args.minimal)
+        if args.episode:
+            run_specific_episode(env, agent, args.episode, minimal=args.minimal)
+        elif args.single:
+            run_single_episode(env, agent, minimal=args.minimal)
+        else:
+            run_full_benchmark(env, agent, minimal=args.minimal)
 
-    if args.minimal:
-        print("[END]")
+    except Exception as e:
+        print(f"[ERROR] Unhandled exception: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+    finally:
+        if args.minimal:
+            print("[END]")
 
 
 if __name__ == "__main__":
