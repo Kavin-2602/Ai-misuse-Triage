@@ -14,7 +14,7 @@ from typing import Any
 # Valid value sets
 # ---------------------------------------------------------------------------
 
-VALID_RISK_LABELS = {"benign", "suspicious", "harmful"}
+VALID_RISK_LABELS = {"benign", "suspicious", "harmful", "low", "medium", "high"}
 VALID_CATEGORIES = {"phishing", "scam", "prompt_injection", "medical", "harassment", "writing_assistance", "other"}
 VALID_ACTIONS = {"allow", "warn", "escalate", "block"}
 

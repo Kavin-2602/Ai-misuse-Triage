@@ -40,6 +40,20 @@ SCORE_CEIL  = 0.90
 # Safe clamping helper
 # ---------------------------------------------------------------------------
 
+def _normalize_label(label: str) -> str:
+    """Map high/medium/low to harmful/suspicious/benign."""
+    l = str(label).lower().strip()
+    mapping = {
+        "high": "harmful",
+        "medium": "suspicious",
+        "low": "benign",
+        "harmful": "harmful",
+        "suspicious": "suspicious",
+        "benign": "benign"
+    }
+    return mapping.get(l, l)
+
+
 def _clamp(score: float) -> float:
     """Clamp score to the open interval (0, 1) required by Phase 2."""
     return max(SCORE_FLOOR, min(SCORE_CEIL, score))
@@ -135,8 +149,11 @@ def grade(
             "rationale_bonus": 0.0,
             "score": SCORE_MALFORMED,
         }
-        return result    # --- Field comparisons ---
-    rl_correct  = decision.risk_label == ground_truth.get("risk_label", "benign")
+        return result    # --- Field comparisons (Label agnostic) ---
+    pred_rl = _normalize_label(decision.risk_label)
+    gt_rl   = _normalize_label(ground_truth.get("risk_label", "benign"))
+    rl_correct  = pred_rl == gt_rl
+
     cat_correct = decision.category   == ground_truth.get("category", "other")
     act_correct = decision.action     == ground_truth.get("action", "allow")
 
