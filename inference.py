@@ -167,8 +167,8 @@ def run_specific_episode(env: MisuseTriageEnv, agent: LLMAgent, episode_id: str,
 
 
 def _clamp_score(score: float) -> float:
-    """Strictly clamp into validator-required open interval (0, 1)."""
-    return max(0.001, min(0.999, float(score)))
+    """Clamp score into requested range [0.01, 0.99]."""
+    return max(0.01, min(0.99, float(score)))
 
 
 # ===========================================================================
@@ -232,7 +232,7 @@ def main() -> None:
             score = _clamp_score(reward if reward is not None else 0.05)
             print(
                 f"[END] task={task_id} success={str(success).lower()} "
-                f"steps={1 if total_steps else 0} score={score:.3f} rewards={score:.3f}",
+                f"steps={1 if total_steps else 0} score={score:.2f} rewards={score:.2f}",
                 flush=True,
             )
 
