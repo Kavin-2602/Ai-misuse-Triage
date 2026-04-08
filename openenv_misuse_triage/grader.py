@@ -268,16 +268,50 @@ def _build_feedback(
     return "\n".join(lines)
 
 
-def grade_task(
-    episode_id: str,
-    agent_output: Any,
-    ground_truth: dict[str, str],
-) -> float:
+def grade_flexible(*args, **kwargs) -> float:
     """
-    OpenEnv-compatible grader entry point.
-    Returns a flat float score instead of a GradeResult object.
+    Extremely defensive plucking of arguments.
+    Supports:
+        - grade(episode_id, agent_output, ground_truth)
+        - grade(agent_output, ground_truth)
+        - grade(agent_output=..., ground_truth=...)
     """
-    # Defensive transform of ground_truth if it arrives as None
-    gt = ground_truth if ground_truth is not None else {}
-    result = grade(episode_id, agent_output, gt)
+    # Start with defaults
+    eid = "unknown"
+    out = {}
+    truth = {}
+
+    # 1. Pluck from kwargs first
+    eid = kwargs.get("episode_id", eid)
+    out = kwargs.get("agent_output", out)
+    truth = kwargs.get("ground_truth", truth)
+
+    # 2. Positional logic resolution
+    if len(args) == 3:
+        # Assume (episode_id, agent_output, ground_truth)
+        eid, out, truth = args
+    elif len(args) == 2:
+        # Check if first is string (id) OR if it looks like agent_output dict
+        if isinstance(args[0], str):
+            eid, out = args
+            # truth might be in kwargs or missing
+        else:
+            # Assume (agent_output, ground_truth)
+            out, truth = args
+    elif len(args) == 1:
+        # Assume (agent_output)
+        out = args[0]
+
+    # 3. Final safety checks
+    out = out if out is not None else {}
+    truth = truth if truth is not None else {}
+
+    result = grade(str(eid), out, truth)
     return float(result.score)
+
+# Define standard aliases
+grade_task = grade_flexible
+grade_score = grade_flexible
+grade_entry = grade_flexible
+# Note: we already have a 'grade' function returning GradeResult, 
+# so we'll rely on 'grade_task' or explicitly exported names in the shim.
