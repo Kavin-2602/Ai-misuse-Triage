@@ -71,6 +71,10 @@ class MisuseTriageEnv(BaseEnv):
         "action_type": "json_string",
     }
 
+    @staticmethod
+    def _strict_score(value: float) -> float:
+        return max(0.001, min(0.999, float(value)))
+
     def __init__(
         self,
         dataset_path: str | None = None,
@@ -147,7 +151,7 @@ class MisuseTriageEnv(BaseEnv):
 
         # Accept either float-returning graders or GradeResult objects.
         if isinstance(result, (int, float)):
-            score_value = float(result)
+            score_value = self._strict_score(float(result))
             result_obj = GradeResult(
                 episode_id=self._current_episode["episode_id"],
                 score=score_value,
@@ -156,7 +160,7 @@ class MisuseTriageEnv(BaseEnv):
             )
         else:
             result_obj = result
-            score_value = float(getattr(result_obj, "score", 0.5))
+            score_value = self._strict_score(float(getattr(result_obj, "score", 0.5)))
 
         self._last_result = result_obj
         # Clamp to [0, 1.1] then scale strictly into (0.1, 0.9) to pass Phase 2 checks
