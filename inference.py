@@ -203,3 +203,25 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+# ===========================================================================
+# Legacy UI Support (fixes learning.py import error on Hugging Face)
+# ===========================================================================
+
+class RuleBasedAgent:
+    """Fallback stub to satisfy imports from learning.py."""
+    def __init__(self):
+        # learning.py expects these lists to initialize its dynamic weights
+        self._RULES = [
+            (["urgent", "password", "login"], "harmful", "phishing", "block"),
+            (["ignore instructions", "system prompt"], "harmful", "prompt_injection", "block")
+        ]
+        self._BENIGN_PATTERNS = ["how to", "what is"]
+    
+    def decide(self, observation: str) -> dict[str, str]:
+        return {
+            "risk_label": "benign", 
+            "category": "other", 
+            "action": "allow", 
+            "rationale": "RuleBased fallback"
+        }
