@@ -38,8 +38,12 @@ class LLMAgent:
     def __init__(self):
         """Initialize with proxy configuration."""
         # MUST read from injected environment variables
-        api_base_url = os.getenv("API_BASE_URL")
+        api_base_url = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
         api_key = os.getenv("API_KEY")
+        hf_token = os.getenv("HF_TOKEN")
+        
+        if not hf_token:
+            raise RuntimeError("FATAL: HF_TOKEN is missing")
         
         if not api_base_url or not api_key:
             raise RuntimeError(
