@@ -11,7 +11,7 @@ from openenv_misuse_triage.grader import (
     WEIGHT_CATEGORY,
     WEIGHT_ACTION,
     BONUS_RATIONALE_MAX,
-    PENALTY_MALFORMED,
+    SCORE_MALFORMED,
 )
 
 
@@ -41,7 +41,7 @@ class TestPerfectScore:
         assert r.risk_label_correct
         assert r.category_correct
         assert r.action_correct
-        assert r.score >= expected_base
+        assert r.score == r.max_score
         assert r.valid_schema
 
     def test_rationale_bonus_awarded_for_long_rationale(self):
@@ -109,18 +109,18 @@ class TestMalformedOutput:
         r = grade("ep_test", "{not valid json", GROUND_TRUTH)
         assert not r.valid_json
         assert not r.valid_schema
-        assert r.score == PENALTY_MALFORMED
+        assert r.score == SCORE_MALFORMED
 
     def test_missing_key_penalized(self):
         r = grade("ep_test", {"risk_label": "harmful"}, GROUND_TRUTH)
         assert not r.valid_schema
-        assert r.score == PENALTY_MALFORMED
+        assert r.score == SCORE_MALFORMED
 
     def test_invalid_risk_label_value_penalized(self):
         output = {**PERFECT_OUTPUT, "risk_label": "extreme"}
         r = grade("ep_test", output, GROUND_TRUTH)
         assert not r.valid_schema
-        assert r.score == PENALTY_MALFORMED
+        assert r.score == SCORE_MALFORMED
 
     def test_feedback_contains_episode_id(self):
         r = grade("ep_abc", PERFECT_OUTPUT, GROUND_TRUTH)
@@ -146,7 +146,7 @@ class TestBatchGrading:
         ]
         stats = grade_batch(records)
         assert stats["num_episodes"] == 2
-        assert 0.0 <= stats["average_score"] <= stats["max_possible_per_episode"]
+        assert 0.0 < stats["average_score"] <= stats["max_possible_per_episode"]
         assert stats["risk_label_accuracy"] == 0.5
         assert stats["category_accuracy"] == 1.0
 
