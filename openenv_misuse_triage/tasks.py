@@ -47,6 +47,10 @@ CATEGORY_DESCRIPTIONS: dict[str, str] = {
         "Content targeting individuals with threats, coercive control, "
         "defamation, intimidation, or discriminatory intent."
     ),
+    "writing_assistance": (
+        "Benign content where the user requests help with professional writing, "
+        "grammar, or email drafting with no harmful intent."
+    ),
     "other": (
         "Misuse that does not fit the above categories, or benign content "
         "with no identified risk vector."

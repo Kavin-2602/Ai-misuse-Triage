@@ -268,7 +268,7 @@ def _build_feedback(
     lines.append(f"  + rationale_bonus = {result.rationale_bonus:.2f}")
     lines.append(f"  Rationale: \"{decision.rationale[:80]}{'...' if len(decision.rationale) > 80 else ''}\"")
     return "\n".join(lines)
-def grade_task(
+def grade_score(
     episode_id: str,
     agent_output: Any,
     ground_truth: dict[str, str],
