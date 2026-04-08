@@ -107,8 +107,11 @@ def run_single_episode(env: MisuseTriageEnv, agent: LLMAgent, minimal: bool = Fa
     obs, info = env.reset(seed=42)
     decision = agent.decide(obs)
     obs, reward, terminated, _, step_info = env.step(decision)
-    if minimal:
-        print(f"[STEP] step=1 action={decision.get('action', '')} reward={reward:.2f} done={str(terminated).lower()} error=null", flush=True)
+    print(
+        f"[STEP] step=1 action={decision.get('action', '')} "
+        f"reward={reward:.2f} done={str(terminated).lower()} error=null",
+        flush=True,
+    )
     return 1, [reward]
 
 
@@ -123,8 +126,11 @@ def run_full_benchmark(env: MisuseTriageEnv, agent: LLMAgent, minimal: bool = Fa
         decision = agent.decide(obs)
         obs, reward, terminated, _, step_info = env.step(decision)
         rewards.append(reward)
-        if minimal:
-            print(f"[STEP] step={episode_num} action={decision.get('action', '')} reward={reward:.2f} done={str(terminated).lower()} error=null", flush=True)
+        print(
+            f"[STEP] step={episode_num} action={decision.get('action', '')} "
+            f"reward={reward:.2f} done={str(terminated).lower()} error=null",
+            flush=True,
+        )
         if terminated:
             break
 
@@ -152,8 +158,11 @@ def run_specific_episode(env: MisuseTriageEnv, agent: LLMAgent, episode_id: str,
     obs = env.render()
     decision = agent.decide(obs)
     _, reward, terminated, _, step_info = env.step(decision)
-    if minimal:
-        print(f"[STEP] step=1 action={decision.get('action', '')} reward={reward:.2f} done={str(terminated).lower()} error=null", flush=True)
+    print(
+        f"[STEP] step=1 action={decision.get('action', '')} "
+        f"reward={reward:.2f} done={str(terminated).lower()} error=null",
+        flush=True,
+    )
     return 1, [reward]
 
 
@@ -186,9 +195,8 @@ def main() -> None:
         env = MisuseTriageEnv(shuffle=False, seed=0)
         agent = LLMAgent()
 
-        if args.minimal:
-            for task_id in TASK_IDS:
-                print(f"[START] task={task_id} env=misuse_triage model={agent.model_name}", flush=True)
+        for task_id in TASK_IDS:
+            print(f"[START] task={task_id} env=misuse_triage model={agent.model_name}", flush=True)
 
         if args.episode:
             total_steps, total_rewards = run_specific_episode(env, agent, args.episode, minimal=args.minimal)
@@ -209,16 +217,15 @@ def main() -> None:
                 env.close()
         except Exception:
             pass
-        if args.minimal:
-            # Emit one task-level END per configured task id with valid score.
-            for idx, task_id in enumerate(TASK_IDS):
-                reward = total_rewards[idx] if idx < len(total_rewards) else 0.05
-                score = _clamp_score(reward if reward is not None else 0.05)
-                print(
-                    f"[END] task={task_id} success={str(success).lower()} "
-                    f"steps={1 if total_steps else 0} score={score:.3f} rewards={score:.3f}",
-                    flush=True,
-                )
+        # Emit one task-level END per configured task id with valid score.
+        for idx, task_id in enumerate(TASK_IDS):
+            reward = total_rewards[idx] if idx < len(total_rewards) else 0.05
+            score = _clamp_score(reward if reward is not None else 0.05)
+            print(
+                f"[END] task={task_id} success={str(success).lower()} "
+                f"steps={1 if total_steps else 0} score={score:.3f} rewards={score:.3f}",
+                flush=True,
+            )
 
 
 if __name__ == "__main__":
