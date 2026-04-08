@@ -135,12 +135,10 @@ def grade(
             "rationale_bonus": 0.0,
             "score": SCORE_MALFORMED,
         }
-        return result
-
-    # --- Field comparisons ---
-    rl_correct  = decision.risk_label == ground_truth["risk_label"]
-    cat_correct = decision.category   == ground_truth["category"]
-    act_correct = decision.action     == ground_truth["action"]
+        return result    # --- Field comparisons ---
+    rl_correct  = decision.risk_label == ground_truth.get("risk_label", "benign")
+    cat_correct = decision.category   == ground_truth.get("category", "other")
+    act_correct = decision.action     == ground_truth.get("action", "allow")
 
     rl_score  = WEIGHT_RISK_LABEL if rl_correct  else 0.0
     cat_score = WEIGHT_CATEGORY   if cat_correct else 0.0
@@ -164,19 +162,19 @@ def grade(
     result.breakdown = {
         "risk_label": {
             "predicted": decision.risk_label,
-            "expected": ground_truth["risk_label"],
+            "expected": ground_truth.get("risk_label", "benign"),
             "correct": rl_correct,
             "points": round(rl_score, 4),
         },
         "category": {
             "predicted": decision.category,
-            "expected": ground_truth["category"],
+            "expected": ground_truth.get("category", "other"),
             "correct": cat_correct,
             "points": round(cat_score, 4),
         },
         "action": {
             "predicted": decision.action,
-            "expected": ground_truth["action"],
+            "expected": ground_truth.get("action", "allow"),
             "correct": act_correct,
             "points": round(act_score, 4),
         },
@@ -204,7 +202,7 @@ def grade_batch(episodes: list[dict]) -> dict[str, Any]:
         r = grade(
             episode_id=ep["episode_id"],
             agent_output=ep["agent_output"],
-            ground_truth=ep["ground_truth"],
+            ground_truth=ep.get("ground_truth", {}),
         )
         results.append(r)
 
@@ -262,13 +260,15 @@ def _build_feedback(
         tick = "✓" if fd["correct"] else "✗"
         lines.append(
             f"  {tick} {field_name:<14} predicted={fd['predicted']:<18} "
-            f"expected={fd['expected']:<18} pts={fd['points']:.2f}"
+            f"expected={fd.get('expected', 'N/A'):<18} pts={fd['points']:.2f}"
         )
 
     lines.append(f"  + rationale_bonus = {result.rationale_bonus:.2f}")
     lines.append(f"  Rationale: \"{decision.rationale[:80]}{'...' if len(decision.rationale) > 80 else ''}\"")
     return "\n".join(lines)
-def grade_score(
+
+
+def grade_task(
     episode_id: str,
     agent_output: Any,
     ground_truth: dict[str, str],
@@ -277,5 +277,7 @@ def grade_score(
     OpenEnv-compatible grader entry point.
     Returns a flat float score instead of a GradeResult object.
     """
-    result = grade(episode_id, agent_output, ground_truth)
+    # Defensive transform of ground_truth if it arrives as None
+    gt = ground_truth if ground_truth is not None else {}
+    result = grade(episode_id, agent_output, gt)
     return float(result.score)

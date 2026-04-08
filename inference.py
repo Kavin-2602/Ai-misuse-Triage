@@ -193,8 +193,8 @@ def main() -> None:
         except Exception:
             pass
         if args.minimal:
-            reward_str = ",".join(f"{r:.2f}" for r in total_rewards)
-            print(f"[END] success={str(success).lower()} steps={total_steps} rewards={reward_str}", flush=True)
+            reward_str = ",".join(f"{float(r):.2f}" for r in total_rewards)
+            print(f"[END] success={str(success).lower()} steps={total_steps} rewards={reward_str} error=null", flush=True)
 
 
 if __name__ == "__main__":
