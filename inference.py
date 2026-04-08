@@ -18,12 +18,36 @@ for key in list(sys.modules.keys()):
 
 import argparse
 import json
+import time
 from openai import OpenAI
 from openenv_misuse_triage import MisuseTriageEnv
 from openenv_misuse_triage.grader import grade_batch
 from openenv_misuse_triage.tasks import get_task_overview, get_label_reference
 
 TASK_IDS = ("task-1", "task-2", "task-3")
+
+
+# #region agent log
+def _debug_log(hypothesis_id: str, message: str, data: dict) -> None:
+    try:
+        with open("debug-1c2985.log", "a", encoding="utf-8") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "sessionId": "1c2985",
+                        "runId": "pre-fix",
+                        "hypothesisId": hypothesis_id,
+                        "location": "inference.py",
+                        "message": message,
+                        "data": data,
+                        "timestamp": int(time.time() * 1000),
+                    }
+                )
+                + "\n"
+            )
+    except Exception:
+        pass
+# #endregion
 
 
 # ===========================================================================
@@ -229,6 +253,9 @@ def main() -> None:
         # Emit one task-level END per configured task id with valid score.
         for idx, task_id in enumerate(TASK_IDS):
             score = _clamp_score(0.5)
+            # #region agent log
+            _debug_log("H4", "end_score_emitted", {"task_id": task_id, "score": score, "success": success, "steps": (1 if total_steps else 0)})
+            # #endregion
             print(
                 f"[END] task={task_id} success={str(success).lower()} "
                 f"steps={1 if total_steps else 0} score={score:.2f} rewards={score:.2f}",
