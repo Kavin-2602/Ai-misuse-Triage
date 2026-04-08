@@ -24,11 +24,25 @@ WEIGHT_ACTION     = 0.30
 # Bonus for rationale quality (added on top of base score)
 BONUS_RATIONALE_MAX = 0.10
 
-# Penalty for malformed / invalid output
-PENALTY_MALFORMED = -0.30
+# Safe score for malformed / invalid output — replaces the old -0.30 penalty.
+# Kept well above 0 to satisfy the open-interval (0, 1) constraint.
+SCORE_MALFORMED = 0.05
 
 # Minimum words in rationale to qualify for the full bonus
 RATIONALE_BONUS_WORD_THRESHOLD = 10
+
+# Hard bounds that enforce the open interval (0, 1) required by Phase 2.
+_SCORE_FLOOR = 0.05
+_SCORE_CEIL  = 0.95
+
+
+# ---------------------------------------------------------------------------
+# Safe clamping helper
+# ---------------------------------------------------------------------------
+
+def _clamp(score: float) -> float:
+    """Clamp score to the open interval (0, 1) required by Phase 2."""
+    return max(_SCORE_FLOOR, min(_SCORE_CEIL, score))
 
 
 # ---------------------------------------------------------------------------
@@ -40,8 +54,8 @@ class GradeResult:
     """Full grade breakdown for a single episode decision."""
 
     episode_id: str
-    score: float                      # Final score in [0.0, 1.0+] (capped at display)
-    max_score: float = 1.0 + BONUS_RATIONALE_MAX
+    score: float                      # Final score strictly in (_SCORE_FLOOR, _SCORE_CEIL)
+    max_score: float = _SCORE_CEIL    # Advertise the clamped ceiling, not the raw 1.1
 
     # Field-level outcomes
     risk_label_correct: bool = False
@@ -93,9 +107,9 @@ def grade(
         ground_truth: Dict with keys risk_label, category, action, rationale.
 
     Returns:
-        A GradeResult with score and detailed breakdown.
+        A GradeResult with score strictly in (0, 1) and a detailed breakdown.
     """
-    result = GradeResult(episode_id=episode_id, score=0.0)
+    result = GradeResult(episode_id=episode_id, score=SCORE_MALFORMED)
 
     # --- Validate agent output ---
     try:
@@ -108,26 +122,27 @@ def grade(
         if "not valid JSON" in str(exc):
             result.valid_json = False
 
-        result.score = PENALTY_MALFORMED
+        # Use the safe floor score instead of the old negative penalty
+        result.score = SCORE_MALFORMED
         result.feedback = (
             f"[FAIL] Output failed schema validation: {exc}\n"
-            f"       Penalty applied: {PENALTY_MALFORMED}"
+            f"       Score floored to: {SCORE_MALFORMED}"
         )
         result.breakdown = {
             "risk_label": "N/A (invalid output)",
             "category": "N/A (invalid output)",
             "action": "N/A (invalid output)",
             "rationale_bonus": 0.0,
-            "penalty": PENALTY_MALFORMED,
+            "score": SCORE_MALFORMED,
         }
         return result
 
     # --- Field comparisons ---
-    rl_correct = decision.risk_label == ground_truth["risk_label"]
-    cat_correct = decision.category == ground_truth["category"]
-    act_correct = decision.action == ground_truth["action"]
+    rl_correct  = decision.risk_label == ground_truth["risk_label"]
+    cat_correct = decision.category   == ground_truth["category"]
+    act_correct = decision.action     == ground_truth["action"]
 
-    rl_score  = WEIGHT_RISK_LABEL if rl_correct else 0.0
+    rl_score  = WEIGHT_RISK_LABEL if rl_correct  else 0.0
     cat_score = WEIGHT_CATEGORY   if cat_correct else 0.0
     act_score = WEIGHT_ACTION     if act_correct else 0.0
 
@@ -136,14 +151,15 @@ def grade(
     # --- Rationale bonus ---
     rationale_bonus = _score_rationale(decision.rationale, ground_truth.get("rationale", ""))
 
-    total_score = base_score + rationale_bonus
+    # --- Clamp into open interval (0, 1) ---
+    total_score = _clamp(round(base_score + rationale_bonus, 4))
 
     # --- Populate result ---
-    result.score = round(total_score, 4)
+    result.score = total_score
     result.risk_label_correct = rl_correct
-    result.category_correct = cat_correct
-    result.action_correct = act_correct
-    result.rationale_bonus = round(rationale_bonus, 4)
+    result.category_correct   = cat_correct
+    result.action_correct     = act_correct
+    result.rationale_bonus    = round(rationale_bonus, 4)
 
     result.breakdown = {
         "risk_label": {
@@ -201,7 +217,7 @@ def grade_batch(episodes: list[dict]) -> dict[str, Any]:
         "num_episodes": n,
         "total_score": round(total, 4),
         "average_score": round(avg, 4),
-        "max_possible_per_episode": 1.0 + BONUS_RATIONALE_MAX,
+        "max_possible_per_episode": _SCORE_CEIL,
         "risk_label_accuracy": round(sum(r.risk_label_correct for r in results) / n, 4) if n else 0.0,
         "category_accuracy": round(sum(r.category_correct for r in results) / n, 4) if n else 0.0,
         "action_accuracy": round(sum(r.action_correct for r in results) / n, 4) if n else 0.0,
@@ -237,7 +253,7 @@ def _build_feedback(
     ground_truth: dict[str, str],
 ) -> str:
     """Build a human-readable feedback string."""
-    lines = [f"Episode: {result.episode_id}  |  Score: {result.score:.2f} / {result.max_score:.2f}"]
+    lines = [f"Episode: {result.episode_id}  |  Score: {result.score:.4f} / {result.max_score:.2f}"]
     lines.append("-" * 55)
 
     bd = result.breakdown
