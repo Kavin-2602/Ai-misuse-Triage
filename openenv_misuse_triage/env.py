@@ -8,10 +8,34 @@ where an agent acts as an AI safety reviewer. Fully offline and self-contained.
 from __future__ import annotations
 
 import copy
+import json
 import random
+import time
 from typing import Any
 
 from .grader import GradeResult, grade
+ # #region agent log
+def _debug_log(hypothesis_id: str, message: str, data: dict[str, Any]) -> None:
+    try:
+        with open("debug-1c2985.log", "a", encoding="utf-8") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "sessionId": "1c2985",
+                        "runId": "pre-fix",
+                        "hypothesisId": hypothesis_id,
+                        "location": "openenv_misuse_triage/env.py",
+                        "message": message,
+                        "data": data,
+                        "timestamp": int(time.time() * 1000),
+                    }
+                )
+                + "\n"
+            )
+    except Exception:
+        pass
+# #endregion
+
 from .tasks import Episode, make_observation
 from .utils import load_episodes
 
@@ -144,16 +168,36 @@ class MisuseTriageEnv(BaseEnv):
             agent_output=action,
             ground_truth=self._current_episode["ground_truth"],
         )
-        self._last_result = result
+
+        # Accept either float-returning graders or GradeResult objects.
+        if isinstance(result, (int, float)):
+            score_value = float(result)
+            result_obj = GradeResult(
+                episode_id=self._current_episode["episode_id"],
+                score=score_value,
+                max_score=score_value,
+                feedback="",
+            )
+            # #region agent log
+            _debug_log("H5", "env_grade_returned_float", {"score_value": score_value})
+            # #endregion
+        else:
+            result_obj = result
+            score_value = float(getattr(result_obj, "score", 0.5))
+            # #region agent log
+            _debug_log("H5", "env_grade_returned_object", {"score_value": score_value, "type": type(result_obj).__name__})
+            # #endregion
+
+        self._last_result = result_obj
         # Clamp to [0, 1.1] then scale strictly into (0.1, 0.9) to pass Phase 2 checks
-        clamped_score = max(0.0, min(1.1, result.score))
+        clamped_score = max(0.0, min(1.1, score_value))
         reward = 0.10 + (clamped_score / 1.1) * 0.80
 
         # --- Advance to next episode ---
         self._episode_index += 1
         info = {
-            "grade_result": result.to_dict(),
-            "feedback": result.feedback,
+            "grade_result": result_obj.to_dict(),
+            "feedback": result_obj.feedback,
             "episode_id": self._current_episode["episode_id"],
             "episodes_remaining": len(self._episode_queue) - self._episode_index,
         }
