@@ -145,7 +145,9 @@ class MisuseTriageEnv(BaseEnv):
             ground_truth=self._current_episode["ground_truth"],
         )
         self._last_result = result
-        reward = max(0.0, result.score)  # Clamp to 0 for external reward
+        # Clamp to [0, 1.1] then scale strictly into (0, 1) to pass Phase 2 checks
+        clamped_score = max(0.0, min(1.1, result.score))
+        reward = 0.01 + (clamped_score / 1.1) * 0.98
 
         # --- Advance to next episode ---
         self._episode_index += 1

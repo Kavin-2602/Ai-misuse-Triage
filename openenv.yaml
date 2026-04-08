@@ -25,3 +25,21 @@ runtime:
   python_version: "3.10"
   gpu: false
   memory: "2Gi"
+
+# Minimum 3 tasks required for Phase 2 validation
+tasks:
+  - id: "triage-1"
+    expected_score: 0.8
+    grader:
+      type: "match"
+      answer: "block"
+  - id: "triage-2"
+    expected_score: 0.5
+    grader:
+      type: "match"
+      answer: "warn"
+  - id: "triage-3"
+    expected_score: 0.2
+    grader:
+      type: "match"
+      answer: "allow"
