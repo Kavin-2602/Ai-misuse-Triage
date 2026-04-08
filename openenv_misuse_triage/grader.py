@@ -26,14 +26,14 @@ BONUS_RATIONALE_MAX = 0.10
 
 # Safe score for malformed / invalid output — replaces the old -0.30 penalty.
 # Kept well above 0 to satisfy the open-interval (0, 1) constraint.
-SCORE_MALFORMED = 0.05
+SCORE_MALFORMED = 0.10
 
 # Minimum words in rationale to qualify for the full bonus
 RATIONALE_BONUS_WORD_THRESHOLD = 10
 
 # Hard bounds that enforce the open interval (0, 1) required by Phase 2.
-_SCORE_FLOOR = 0.05
-_SCORE_CEIL  = 0.95
+SCORE_FLOOR = 0.10
+SCORE_CEIL  = 0.90
 
 
 # ---------------------------------------------------------------------------
@@ -42,7 +42,7 @@ _SCORE_CEIL  = 0.95
 
 def _clamp(score: float) -> float:
     """Clamp score to the open interval (0, 1) required by Phase 2."""
-    return max(_SCORE_FLOOR, min(_SCORE_CEIL, score))
+    return max(SCORE_FLOOR, min(SCORE_CEIL, score))
 
 
 # ---------------------------------------------------------------------------
@@ -54,8 +54,8 @@ class GradeResult:
     """Full grade breakdown for a single episode decision."""
 
     episode_id: str
-    score: float                      # Final score strictly in (_SCORE_FLOOR, _SCORE_CEIL)
-    max_score: float = _SCORE_CEIL    # Advertise the clamped ceiling, not the raw 1.1
+    score: float                      # Final score strictly in (SCORE_FLOOR, SCORE_CEIL)
+    max_score: float = SCORE_CEIL    # Advertise the clamped ceiling, not the raw 1.1
 
     # Field-level outcomes
     risk_label_correct: bool = False
@@ -217,7 +217,7 @@ def grade_batch(episodes: list[dict]) -> dict[str, Any]:
         "num_episodes": n,
         "total_score": round(total, 4),
         "average_score": round(avg, 4),
-        "max_possible_per_episode": _SCORE_CEIL,
+        "max_possible_per_episode": SCORE_CEIL,
         "risk_label_accuracy": round(sum(r.risk_label_correct for r in results) / n, 4) if n else 0.0,
         "category_accuracy": round(sum(r.category_correct for r in results) / n, 4) if n else 0.0,
         "action_accuracy": round(sum(r.action_correct for r in results) / n, 4) if n else 0.0,
