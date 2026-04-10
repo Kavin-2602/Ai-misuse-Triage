@@ -1,59 +1,69 @@
 document.addEventListener("DOMContentLoaded", () => {
     const btn = document.getElementById("submit-btn");
-    const spinner = document.getElementById("spinner");
+    const loader = document.getElementById("loader");
     const btnText = document.querySelector(".btn-text");
     const errorText = document.getElementById("error-message");
+    
+    const idleUI = document.getElementById("idle-ui");
+    const loadingUI = document.getElementById("loading-ui");
+    const resultUI = document.getElementById("result-ui");
+    
+    const ticketId = document.getElementById("ticket-id");
+    const badgeCategory = document.getElementById("badge-category");
+    const badgeRisk = document.getElementById("badge-risk");
+    const badgeAction = document.getElementById("badge-action");
+    const rationaleText = document.getElementById("rationale-text");
+    
     const jsonViewer = document.getElementById("json-viewer");
-    const statusRing = document.querySelector(".status-ring");
-    const statusLbl = document.querySelector(".status-lbl");
+    const rewardSection = document.getElementById("reward-section");
+    const rewardStatus = document.getElementById("reward-status");
 
     let currentEpisodeId = null;
+    let typeWriterInterval = null;
 
-    const syntaxHighlight = (json) => {
-        if (typeof json != 'string') {
-            json = JSON.stringify(json, undefined, 2);
-        }
-        json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
-            let cls = 'json-number';
-            if (/^"/.test(match)) {
-                if (/:$/.test(match)) {
-                    cls = 'json-key';
-                } else {
-                    cls = 'json-string';
-                    // Special styling for risk labels if they appear as values
-                    if (match === '"harmful"') cls += ' risk-harmful';
-                    if (match === '"suspicious"') cls += ' risk-suspicious';
-                    if (match === '"benign"') cls += ' risk-benign';
-                }
-            } else if (/true|false/.test(match)) {
-                cls = 'json-boolean';
-            } else if (/null/.test(match)) {
-                cls = 'json-null';
+    const setCardState = (state) => {
+        idleUI.style.display = "none";
+        loadingUI.style.display = "none";
+        resultUI.style.display = "none";
+        
+        if (state === "idle") idleUI.style.display = "flex";
+        if (state === "loading") loadingUI.style.display = "block";
+        if (state === "result") resultUI.style.display = "flex";
+    };
+
+    const typeWriter = (text, element, speed = 15) => {
+        clearInterval(typeWriterInterval);
+        element.innerHTML = '<span class="cursor"></span>';
+        let i = 0;
+        
+        typeWriterInterval = setInterval(() => {
+            if (i < text.length) {
+                element.innerHTML = text.substring(0, i + 1) + '<span class="cursor"></span>';
+                i++;
+            } else {
+                clearInterval(typeWriterInterval);
+                element.innerHTML = text; // Remove cursor after done
             }
-            return '<span class="' + cls + '">' + match + '</span>';
-        });
+        }, speed);
     };
 
     btn.addEventListener("click", async () => {
         const prompt = document.getElementById("prompt").value;
         const assistantResponse = document.getElementById("assistant-response").value;
         const context = document.getElementById("context").value;
-        const modeInput = document.querySelector('input[name="mode"]:checked');
-        const mode = modeInput ? modeInput.value : "evaluation";
+        const mode = document.querySelector('input[name="mode"]:checked').value;
 
         // Visual loading state
         errorText.textContent = "";
-        btnText.textContent = "Running Analysis...";
-        spinner.style.display = "block";
-        statusRing.style.backgroundColor = "var(--warn)";
-        statusRing.style.boxShadow = "0 0 8px var(--warn)";
-        statusLbl.textContent = "Analyzing input telemetry...";
+        btnText.textContent = "Processing...";
+        loader.style.display = "block";
+        btn.disabled = true;
         
-        // Hide reward section while inferring
-        const rewardSection = document.getElementById("reward-section");
-        const rewardStatus = document.getElementById("reward-status");
+        setCardState("loading");
         if(rewardSection) rewardSection.style.display = "none";
+        rewardStatus.textContent = "";
+        
+        jsonViewer.innerHTML = "> Executing inference engine...\n> Requesting /api/infer";
 
         try {
             const res = await fetch("/api/infer", {
@@ -62,54 +72,55 @@ document.addEventListener("DOMContentLoaded", () => {
                 body: JSON.stringify({ mode, prompt, assistant_response: assistantResponse, context })
             });
 
-            if (!res.ok) {
-                throw new Error("Server responded with status " + res.status);
-            }
+            if (!res.ok) throw new Error("Server responded with status " + res.status);
 
             const data = await res.json();
             
-            // Render JSON nicely format 
-            jsonViewer.innerHTML = syntaxHighlight(data);
+            // Format JSON
+            jsonViewer.innerHTML = `<span style="color:var(--accent-primary)">> Payload received:</span>\n${JSON.stringify(data, null, 2)}`;
 
             currentEpisodeId = data.episode_id;
-            if (mode === "training" && currentEpisodeId && rewardSection) {
-                rewardSection.style.display = "block";
-                rewardStatus.textContent = "";
-            }
+            
+            // Build Ticket View
+            ticketId.textContent = `EP-${data.episode_id.split("-")[0].toUpperCase()}`;
+            
+            badgeCategory.textContent = data.category || "Unknown";
+            
+            const risk = data.risk_label || "Unknown";
+            badgeRisk.textContent = risk.toUpperCase();
+            badgeRisk.className = "badge"; // reset
+            if (risk === "harmful") badgeRisk.classList.add("badge-risk-harmful");
+            else if (risk === "suspicious") badgeRisk.classList.add("badge-risk-suspicious");
+            else badgeRisk.classList.add("badge-risk-benign");
+            
+            badgeAction.textContent = `ACT: ${(data.action || "NONE").toUpperCase()}`;
+            
+            setCardState("result");
+            typeWriter(data.rationale || "No rationale provided by model.", rationaleText);
 
-            // Update status indicator
-            const risk = data.risk_label || "unknown";
-            if (risk === "harmful") {
-                statusRing.style.backgroundColor = "var(--danger)";
-                statusRing.style.boxShadow = "0 0 10px var(--danger)";
-                statusLbl.textContent = "Priority Alert: Harmful";
-            } else if (risk === "suspicious") {
-                statusRing.style.backgroundColor = "var(--warn)";
-                statusRing.style.boxShadow = "0 0 10px var(--warn)";
-                statusLbl.textContent = "Caution: Suspicious";
-            } else {
-                statusRing.style.backgroundColor = "var(--success)";
-                statusRing.style.boxShadow = "0 0 10px var(--success)";
-                statusLbl.textContent = "Clear: Benign";
+            if (mode === "training" && currentEpisodeId && rewardSection) {
+                // Show reward layout
+                rewardSection.style.display = "flex";
+                document.getElementById("reward-pos").disabled = false;
+                document.getElementById("reward-neg").disabled = false;
             }
 
         } catch (err) {
             errorText.textContent = "Connection error: " + err.message;
-            statusRing.style.backgroundColor = "var(--text-muted)";
-            statusRing.style.boxShadow = "none";
-            statusLbl.textContent = "Execution Failed";
+            setCardState("idle");
+            jsonViewer.innerHTML = `<span style="color:var(--danger)">> ERROR: ${err.message}</span>`;
         } finally {
-            btnText.textContent = "Execute Inference Evaluation";
-            spinner.style.display = "none";
+            btnText.textContent = "Execute Policy Analysis";
+            loader.style.display = "none";
+            btn.disabled = false;
         }
     });
 
     const sendReward = async (rewardVal) => {
         if (!currentEpisodeId) return;
-        const rewardStatus = document.getElementById("reward-status");
         
         try {
-            rewardStatus.textContent = "Sending feedback...";
+            rewardStatus.textContent = "Synchronizing policy...";
             rewardStatus.style.color = "var(--text-muted)";
             
             const res = await fetch("/api/reward", {
@@ -120,18 +131,16 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await res.json();
             
             if (data.status === "success") {
-                rewardStatus.textContent = data.message;
+                rewardStatus.textContent = "Policy successfully updated.";
                 rewardStatus.style.color = "var(--success)";
                 document.getElementById("reward-pos").disabled = true;
                 document.getElementById("reward-neg").disabled = true;
-                
-                // Keep the success state briefly, we don't hide it so the user knows it worked.
             } else {
                 rewardStatus.textContent = "Error: " + data.message;
                 rewardStatus.style.color = "var(--danger)";
             }
         } catch (err) {
-            rewardStatus.textContent = "Failed to send reward parameters.";
+            rewardStatus.textContent = "Terminal Error: Failed to synchronize.";
             rewardStatus.style.color = "var(--danger)";
         }
     };

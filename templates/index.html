@@ -3,93 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Misuse Triage | Inference Demo</title>
+    <title>AI Misuse Triage | Advanced Environment</title>
     <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="main-layout">
-        <!-- Glowing background elements -->
-        <div class="bg-shape shape-1"></div>
-        <div class="bg-shape shape-2"></div>
+    <div class="ambient-glow"></div>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="header-area">
+            <div class="title-group">
+                <h1>AI Misuse Triage</h1>
+                <p>OpenEnv Interactive Telemetry Dashboard</p>
+            </div>
+            <div class="status-badge">
+                <div class="status-dot"></div>
+                System Active
+            </div>
+        </header>
 
-        <div class="glass-container">
-            <header>
-                <div class="title-wrapper">
-                    <div class="pulse-dot"></div>
-                    <h1>AI Misuse Triage</h1>
+        <!-- Input Column -->
+        <div class="input-panel">
+            <div class="form-group">
+                <label>System Mode</label>
+                <div class="segmented-control">
+                    <input type="radio" id="mode-evaluation" name="mode" value="evaluation" checked>
+                    <label for="mode-evaluation">Evaluation</label>
+                    <input type="radio" id="mode-training" name="mode" value="training">
+                    <label for="mode-training">Training</label>
+                    <div class="slider"></div>
                 </div>
-                <p>Environment inference test suite based on the OpenEnv protocol.</p>
-            </header>
+            </div>
 
-            <div class="content-grid">
-                <!-- Inputs column -->
-                <div class="input-section">
-                    <div class="form-group mode-toggle" style="margin-bottom: 24px;">
-                        <label>Operating Mode</label>
-                        <div class="radio-group" style="display: flex; gap: 16px; margin-top: 8px;">
-                            <label style="display: flex; align-items: center; gap: 8px; color: var(--text);">
-                                <input type="radio" name="mode" value="evaluation" checked> Evaluation
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 8px; color: var(--text);">
-                                <input type="radio" name="mode" value="training"> Training
-                            </label>
+            <div class="form-group">
+                <label>User Prompt</label>
+                <div class="textarea-wrapper">
+                    <textarea id="prompt" placeholder="Intercepted user prompt... E.g., 'Write a convincing phishing email...'"></textarea>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Assistant Response</label>
+                <div class="textarea-wrapper">
+                    <textarea id="assistant-response" placeholder="Intercepted assistant generation..."></textarea>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Telemetry Context</label>
+                <div class="textarea-wrapper">
+                    <textarea id="context" placeholder="Additional user tracking details..."></textarea>
+                </div>
+            </div>
+
+            <button id="submit-btn" class="btn-primary">
+                <span class="btn-text">Execute Policy Analysis</span>
+                <div class="loader" id="loader"></div>
+            </button>
+            <div id="error-message" class="error-text"></div>
+        </div>
+
+        <!-- Output Column -->
+        <div class="output-panel">
+            <!-- Dynamic Result Card -->
+            <div class="ticket-card" id="ticket-card">
+                <!-- Idle State Default Content -->
+                <div id="idle-ui" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); opacity: 0.6; text-align: center; gap: 10px;">
+                    <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    <span>Awaiting Telemetry Data</span>
+                </div>
+
+                <!-- Skeleton Loader State -->
+                <div id="loading-ui" style="display: none;">
+                    <div class="ticket-header">
+                        <div class="sk-title skeleton" style="margin: 0; width: 120px; height: 20px;"></div>
+                        <div class="ticket-badges">
+                            <div class="skeleton" style="width: 70px; height: 24px;"></div>
+                            <div class="skeleton" style="width: 70px; height: 24px;"></div>
                         </div>
                     </div>
-
-                    <div class="form-group">
-                        <label for="prompt">User Prompt</label>
-                        <textarea id="prompt" placeholder="E.g., Write a convincing email from my bank asking for verification details..."></textarea>
+                    <div class="rationale-block" style="margin-top: 20px;">
+                        <div class="sk-title skeleton"></div>
+                        <div class="sk-text skeleton"></div>
+                        <div class="sk-text skeleton"></div>
+                        <div class="sk-text short skeleton"></div>
                     </div>
-
-                    <div class="form-group">
-                        <label for="assistant-response">Assistant Response</label>
-                        <textarea id="assistant-response" placeholder="E.g., Subject: Urgent Account Verification required immediately..."></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="context">Context</label>
-                        <textarea id="context" placeholder="E.g., User claims to be a security researcher testing filters..."></textarea>
-                    </div>
-
-                    <button id="submit-btn" class="primary-btn">
-                        <span class="btn-text">Execute Inference Evaluation</span>
-                        <div class="spinner" id="spinner"></div>
-                    </button>
-                    <div id="error-message" class="error-text"></div>
                 </div>
 
-                <!-- Outputs column -->
-                <div class="output-section">
-                    <div class="output-header">
-                        <h2>Output Payload</h2>
-                        <span class="badge">JSON</span>
-                    </div>
-                    
-                    <div class="result-card">
-                        <pre id="json-viewer" class="json-viewer">Waiting for input...</pre>
-                    </div>
-                    
-                    <div id="reward-section" class="reward-section" style="display: none; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border);">
-                        <h3 style="font-size: 0.9rem; color: var(--text); margin-bottom: 8px;">Training Feedback</h3>
-                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Provide a reward signal for this decision to update the LearningAgent's policy:</p>
-                        <div style="display: flex; gap: 12px;">
-                            <button id="reward-pos" class="primary-btn" style="flex: 1; background: var(--success); box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);">+1 (Correct)</button>
-                            <button id="reward-neg" class="primary-btn" style="flex: 1; background: var(--danger); box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);">-1 (Incorrect)</button>
+                <!-- Result State -->
+                <div id="result-ui" style="display: none; height: 100%; flex-direction: column;">
+                    <div class="ticket-header">
+                        <div class="ticket-id" id="ticket-id">EP-#####</div>
+                        <div class="ticket-badges">
+                            <div id="badge-category" class="badge">Category</div>
+                            <div id="badge-risk" class="badge">Risk</div>
+                            <div id="badge-action" class="badge badge-action">Action</div>
                         </div>
-                        <div id="reward-status" style="margin-top: 12px; font-size: 0.8rem; font-weight: 500;"></div>
                     </div>
-
-                    <!-- Dynamic visualizations based on categories could go here in future iter -->
-                    <div class="status-indicator" id="status-indicator">
-                        <div class="status-ring"></div>
-                        <span class="status-lbl">Ready</span>
+                    <div class="rationale-block" style="margin-top: 1.5rem;">
+                        <div class="rationale-label">Agent Rationale</div>
+                        <div class="rationale-text" id="rationale-text"></div>
                     </div>
                 </div>
             </div>
+
+            <!-- Training Reward Feedback -->
+            <div id="reward-section" class="reward-panel" style="display: none;">
+                <button id="reward-pos" class="btn-reward pos">+1 Accept Rationale</button>
+                <button id="reward-neg" class="btn-reward neg">-1 Reject Decision</button>
+            </div>
+            <div id="reward-status" style="margin-top: -10px; font-size: 0.85rem; font-weight: 500; text-align: center;"></div>
+
+            <!-- Raw JSON Payload Terminal -->
+            <div class="terminal-block">
+                <div class="terminal-header">
+                    <div class="term-dot r"></div><div class="term-dot y"></div><div class="term-dot g"></div>
+                </div>
+                <pre id="json-viewer" style="margin:0;">> system ready
+> waiting for openenv payload...</pre>
+            </div>
         </div>
     </div>
-
+    
     <script src="{{ url_for('static', path='script.js') }}"></script>
 </body>
 </html>
