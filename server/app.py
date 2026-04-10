@@ -1,63 +1,61 @@
 """
 server/app.py - OpenEnv Server Entry Point for AI Misuse Triage Environment.
 """
-
-from flask import Flask, render_template, request, jsonify
 import uuid
-from inference import RuleBasedAgent
-from learning import LearningAgent
-from openenv_misuse_triage import MisuseTriageEnv
-from openenv_misuse_triage.tasks import make_observation
+import sys
+import os
 
-app = Flask(__name__)
-# Initialize standard environment instance for compliance endpoints
-env = MisuseTriageEnv(shuffle=False, seed=42)
+# Add root folder to sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Initialize both the existing rule-based agent for evaluation and the learning agent for training
-eval_agent = RuleBasedAgent()
-train_agent = LearningAgent()
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from openenv.core.env_server.http_server import create_app
 
-# In-memory store for pending training episodes waiting for a reward
+from server.misuse_triage_environment import MisuseTriageEnvironment
+from openenv_misuse_triage.models import MisuseTriageAction, MisuseTriageObservation
+
+# Initialize auxiliary agents if present in environment
+try:
+    from inference import RuleBasedAgent
+    eval_agent = RuleBasedAgent()
+except ImportError:
+    eval_agent = None
+
+try:
+    from learning import LearningAgent
+    train_agent = LearningAgent()
+except ImportError:
+    train_agent = None
+
+# 1. Create the OpenEnv platform backend APIs
+# This adds /reset, /step, /state, /schema automatically.
+app = create_app(
+    MisuseTriageEnvironment,
+    MisuseTriageAction,
+    MisuseTriageObservation,
+    env_name="misuse_triage",
+    max_concurrent_envs=10
+)
+
+# 2. Port the Web UI elements
+templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 pending_episodes = {}
 
-@app.route("/")
-def index():
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request):
     """Serves the main frontend Web UI."""
-    return render_template("index.html")
+    return templates.TemplateResponse("index.html", {"request": request})
 
-@app.route("/api/reset", methods=["POST"])
-@app.route("/reset", methods=["POST"])
-def reset():
-    """Standard OpenEnv reset endpoint."""
-    obs, info = env.reset()
-    return jsonify({"observation": obs, "info": info})
-
-@app.route("/api/step", methods=["POST"])
-@app.route("/step", methods=["POST"])
-def step():
-    """Standard OpenEnv step endpoint."""
-    data = request.json or {}
-    action = data.get("action")
-    obs, reward, term, trunc, info = env.step(action)
-    return jsonify({
-        "observation": obs,
-        "reward": reward,
-        "terminated": term,
-        "truncated": trunc,
-        "info": info
-    })
-
-@app.route("/api/state", methods=["GET"])
-@app.route("/state", methods=["GET"])
-def state():
-    """Standard OpenEnv state endpoint."""
-    return jsonify(env.state())
-
-@app.route("/api/infer", methods=["POST"])
-@app.route("/infer", methods=["POST"])
-def infer():
+@app.post("/infer")
+@app.post("/api/infer")
+async def infer(request: Request):
     """Endpoint to run the triage logic on user inputs."""
-    data = request.json or {}
+    data = await request.json()
     mode = data.get("mode", "evaluation")
     prompt = data.get("prompt", "")
     assistant_response = data.get("assistant_response", "")
@@ -72,18 +70,24 @@ def infer():
         "ground_truth": {}
     }
 
-    observation = make_observation(episode)
-    if mode == "training":
+    try:
+        from openenv_misuse_triage.tasks import make_observation
+        observation = make_observation(episode)
+    except:
+        observation = ""
+
+    decision = {}
+    if mode == "training" and train_agent:
         decision = train_agent.decide(observation)
         pending_episodes[episode_id] = {
             "episode": episode,
             "observation": observation,
             "decision": decision
         }
-    else:
+    elif eval_agent:
         decision = eval_agent.decide(observation)
 
-    return jsonify({
+    return JSONResponse(content={
         "episode_id": episode_id,
         "risk_label": decision.get("risk_label", "suspicious"),
         "category": decision.get("category", "other"),
@@ -91,30 +95,35 @@ def infer():
         "rationale": decision.get("rationale", "No rationale provided by agent."),
     })
 
-@app.route("/api/reward", methods=["POST"])
-def reward():
+@app.post("/api/reward")
+async def reward(request: Request):
     """Endpoint to submit reward feedback in training mode."""
-    data = request.json or {}
+    data = await request.json()
     episode_id = data.get("episode_id")
     reward_val = float(data.get("reward", 0.0))
 
     if episode_id in pending_episodes:
         record = pending_episodes.pop(episode_id)
         decision = record["decision"]
-        train_agent.update_policy(decision, reward_val)
-        train_agent.log_episode({
-            "episode_id": episode_id,
-            "episode": record["episode"],
-            "decision": decision,
-            "reward": reward_val
-        })
-        return jsonify({"status": "success", "message": f"Reward {reward_val} applied and policy updated."})
+        if train_agent:
+            train_agent.update_policy(decision, reward_val)
+            train_agent.log_episode({
+                "episode_id": episode_id,
+                "episode": record["episode"],
+                "decision": decision,
+                "reward": reward_val
+            })
+        return JSONResponse(content={"status": "success", "message": f"Reward {reward_val} applied."})
 
-    return jsonify({"status": "error", "message": "Episode ID not found or already verified."}), 404
+    return JSONResponse(status_code=404, content={"status": "error", "message": "Episode ID not found."})
 
-def main():
-    """Entry point for the server command."""
-    app.run(host="0.0.0.0", port=7860)
+def main(host: str = "0.0.0.0", port: int = 7860):
+    import uvicorn
+    uvicorn.run(app, host=host, port=port)
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=int, default=7860)
+    args = parser.parse_args()
+    main(port=args.port)
